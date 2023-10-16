@@ -142,6 +142,10 @@ class Minitest::Test
     ActiveRecord::Base.connection.adapter_name == "Mysql2"
   end
 
+  def multi_database_support?
+    ActiveRecord::VERSION::MAJOR >= 6
+  end
+
   def detector_name
     self.class.name.sub(/Test$/, "").demodulize.underscore.to_sym
   end

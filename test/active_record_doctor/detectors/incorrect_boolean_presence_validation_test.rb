@@ -17,6 +17,20 @@ class ActiveRecordDoctor::Detectors::IncorrectBooleanPresenceValidationTest < Mi
     OUTPUT
   end
 
+  def test_mutli_database_support
+    skip if !multi_database_support?
+
+    SecondaryContext.create_table(:users) do |t|
+      t.boolean :active, null: false
+    end.define_model do
+      validates :active, presence: true
+    end
+
+    assert_problems(<<~OUTPUT)
+      replace the `presence` validator on SecondaryContext::User.active with `inclusion` - `presence` can't be used on booleans
+    OUTPUT
+  end
+
   def test_inclusion_is_not_reported
     Context.create_table(:users) do |t|
       t.boolean :active, null: false
@@ -29,6 +43,25 @@ class ActiveRecordDoctor::Detectors::IncorrectBooleanPresenceValidationTest < Mi
 
   def test_models_with_non_existent_tables_are_skipped
     Context.define_model(:User)
+
+    refute_problems
+  end
+
+  def test_config_ignore_databases
+    skip if !multi_database_support?
+
+    SecondaryContext.create_table(:users) do |t|
+      t.boolean :active, null: false
+    end.define_model do
+      validates :active, presence: true
+    end
+
+    config_file(<<-CONFIG)
+      ActiveRecordDoctor.configure do |config|
+        config.detector :incorrect_boolean_presence_validation,
+          ignore_databases: ["secondary"]
+      end
+    CONFIG
 
     refute_problems
   end
@@ -61,6 +94,24 @@ class ActiveRecordDoctor::Detectors::IncorrectBooleanPresenceValidationTest < Mi
       ActiveRecordDoctor.configure do |config|
         config.detector :incorrect_boolean_presence_validation,
           ignore_models: [/User/]
+      end
+    CONFIG
+
+    refute_problems
+  end
+
+  def test_global_ignore_databases
+    skip if !multi_database_support?
+
+    SecondaryContext.create_table(:users) do |t|
+      t.boolean :active, null: false
+    end.define_model do
+      validates :active, presence: true
+    end
+
+    config_file(<<-CONFIG)
+      ActiveRecordDoctor.configure do |config|
+        config.global :ignore_databases, ["secondary"]
       end
     CONFIG
 
